@@ -134,10 +134,9 @@ start_styling() {
     echo -e "${GREEN_COLOR}🎉 环境检测完成${RESET}"
     echo ""
 
-# 第二步：下载依赖文件
-download_dependencies() {
+    # 第二步：下载依赖文件
     echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
-    echo -e "${BOLD}${CYAN_COLOR}📥 下载依赖文件 ${YELLOW_COLOR}»» ${MAGENTA_COLOR}步骤 [2/3]${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}📥 下载依赖文件 ${YELLOW_COLOR}»» ${MAGENTA_COLOR}步骤 [2/2]${RESET}"
     echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
     echo ""
 
