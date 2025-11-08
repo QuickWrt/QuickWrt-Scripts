@@ -53,57 +53,12 @@ show_banner() {
     echo -e ""
 }
 
-### 开始风格化 ###
-start_styling() {
-    # 第一步：环境检测
-    echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
-    echo -e "${BOLD}${CYAN_COLOR}✨ 系统环境全面检测 ${YELLOW_COLOR}»» ${MAGENTA_COLOR}步骤 [1/3]${RESET}"
-    echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
-    echo ""
-
-    # 更新软件源
-    echo -e "${CYAN_COLOR}📦 更新软件源...${RESET}"
-    if opkg update; then
-        echo -e "${GREEN_COLOR}✅ 软件源更新成功${RESET}"
-    else
-        echo -e "${RED_COLOR}❌ 软件源更新失败${RESET}"
-        exit 1
-    fi
-
-    # 检测网络工具
-    echo -e "${CYAN_COLOR}🌐 检测网络工具...${RESET}"
-    if command -v curl &> /dev/null || command -v wget &> /dev/null; then
-        if command -v curl &> /dev/null; then
-            echo -e "${GREEN_COLOR}✅ curl 已安装${RESET}"
-        else
-            echo -e "${GREEN_COLOR}✅ wget 已安装${RESET}"
-        fi
-    else
-        echo -e "${YELLOW_COLOR}📥 安装网络工具...${RESET}"
-        if opkg install curl || opkg install wget; then
-            echo -e "${GREEN_COLOR}✅ 网络工具安装成功${RESET}"
-        else
-            echo -e "${RED_COLOR}❌ 网络工具安装失败${RESET}"
-            exit 1
-        fi
-    fi
-
-    # 检测解压缩工具
-    echo -e "${CYAN_COLOR}📁 检测解压缩工具...${RESET}"
-    if command -v unzip &> /dev/null; then
-        echo -e "${GREEN_COLOR}✅ unzip 已安装${RESET}"
-    else
-        echo -e "${YELLOW_COLOR}📥 安装unzip...${RESET}"
-        if opkg install unzip; then
-            echo -e "${GREEN_COLOR}✅ unzip 安装成功${RESET}"
-        else
-            echo -e "${RED_COLOR}❌ unzip 安装失败${RESET}"
-            exit 1
-        fi
-    fi
-
-    # 检测现有插件
-    echo -e "${CYAN_COLOR}🔌 检测现有插件...${RESET}"
+# 检查并移除插件
+remove_plugins() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}🔍 检查并移除旧插件...${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    
     local plugins=(
         "luci-app-argon-config"
         "luci-app-quickstart" 
@@ -115,120 +70,150 @@ start_styling() {
         "taskd"
     )
     
-    local found_plugins=()
     for plugin in "${plugins[@]}"; do
-        if opkg list-installed | grep -q "^$plugin"; then
-            found_plugins+=("$plugin")
+        if opkg list-installed | grep -q "^$plugin "; then
+            echo -e "${YELLOW_COLOR}🗑️  正在移除: $plugin${RESET}"
+            opkg remove --force-removal-of-dependent-packages "$plugin" >/dev/null 2>&1 || true
+            echo -e "${GREEN_COLOR}✅ 已移除: $plugin${RESET}"
+        else
+            echo -e "${CYAN_COLOR}ℹ️  未安装: $plugin${RESET}"
         fi
     done
     
-    if [ ${#found_plugins[@]} -gt 0 ]; then
-        echo -e "${YELLOW_COLOR}🗑️  发现已安装插件，将在下一步移除:${RESET}"
-        for plugin in "${found_plugins[@]}"; do
-            echo -e "  ${YELLOW_COLOR}• $plugin${RESET}"
-        done
-    else
-        echo -e "${GREEN_COLOR}✅ 未发现相关插件${RESET}"
-    fi
+    echo -e "${BOLD}${GREEN_COLOR}✅ 插件检查完成${RESET}"
+    echo ""
+}
 
-    echo -e "${GREEN_COLOR}🎉 环境检测完成${RESET}"
+# 下载并添加密钥
+add_key() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}🔑 下载并添加软件源密钥...${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    
+    local key_url="https://opkg.kejizero.xyz/key-build.pub"
+    local key_file="/tmp/key-build.pub"
+    
+    echo -e "${YELLOW_COLOR}📥 下载密钥: $key_url${RESET}"
+    if wget -q --timeout=30 --tries=3 -O "$key_file" "$key_url"; then
+        echo -e "${GREEN_COLOR}✅ 密钥下载成功${RESET}"
+        echo -e "${YELLOW_COLOR}🔐 添加密钥到opkg...${RESET}"
+        opkg-key add "$key_file" >/dev/null 2>&1
+        echo -e "${GREEN_COLOR}✅ 密钥添加成功${RESET}"
+        rm -f "$key_file"
+    else
+        echo -e "${RED_COLOR}❌ 密钥下载失败，跳过此步骤${RESET}"
+        return 1
+    fi
+    
     echo ""
+}
 
-    # 第二步：下载依赖文件
-    echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
-    echo -e "${BOLD}${CYAN_COLOR}📥 下载依赖文件 ${YELLOW_COLOR}»» ${MAGENTA_COLOR}步骤 [2/2]${RESET}"
-    echo -e "${BOLD}${BLUE_COLOR}■ ■ ■ ■ ■ ■ ■ ■ ■ ■ ■ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □ □${RESET}"
+# 添加软件源
+add_feeds() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}📦 添加软件源...${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    
+    local feed_url="https://opkg.cooluc.com/openwrt-24.10/$arch"
+    local feed_line="src/gz openwrt_extras $feed_url"
+    local feeds_file="/etc/opkg/customfeeds.conf"
+    
+    # 检查是否已存在该源
+    if grep -q "^$feed_line" "$feeds_file" 2>/dev/null; then
+        echo -e "${CYAN_COLOR}ℹ️  软件源已存在，跳过添加${RESET}"
+    else
+        echo -e "${YELLOW_COLOR}➕ 添加软件源: $feed_url${RESET}"
+        echo "$feed_line" >> "$feeds_file"
+        echo -e "${GREEN_COLOR}✅ 软件源添加成功${RESET}"
+    fi
+    
     echo ""
+}
 
-    local download_url="https://github.com/QuickWrt/QuickWrt-Scripts/releases/download/$arch/$arch-openwrt-24.10.zip"
-    local zip_file="$arch-openwrt-24.10.zip"
-    local extract_dir="QuickWrt"
+# 更新软件包列表
+update_opkg() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}🔄 更新软件包列表...${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
     
-    echo -e "${CYAN_COLOR}🏗️  系统架构: ${YELLOW_COLOR}$arch${RESET}"
-    echo -e "${CYAN_COLOR}📦 下载文件: ${YELLOW_COLOR}$zip_file${RESET}"
-    echo -e "${CYAN_COLOR}📁 解压目录: ${YELLOW_COLOR}$extract_dir${RESET}"
-    echo -e "${CYAN_COLOR}🔗 下载地址: ${YELLOW_COLOR}$download_url${RESET}"
+    echo -e "${YELLOW_COLOR}🔄 执行 opkg update...${RESET}"
+    if opkg update >/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}✅ 软件包列表更新成功${RESET}"
+    else
+        echo -e "${RED_COLOR}❌ 软件包列表更新失败${RESET}"
+        return 1
+    fi
+    
     echo ""
+}
+
+# 安装 quickstart
+install_quickstart() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}📥 安装 luci-app-quickstart...${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
     
-    # 清理旧文件
-    echo -e "${CYAN_COLOR}🧹 清理旧文件...${RESET}"
-    rm -rf "$zip_file" "$extract_dir"
-    echo -e "${GREEN_COLOR}✅ 清理完成${RESET}"
-    
-    # 下载文件
-    echo -e "${CYAN_COLOR}📥 下载依赖包...${RESET}"
-    if command -v curl &> /dev/null; then
-        if curl -L -o "$zip_file" "$download_url"; then
-            echo -e "${GREEN_COLOR}✅ 下载成功 (使用curl)${RESET}"
-        else
-            echo -e "${RED_COLOR}❌ 下载失败${RESET}"
-            exit 1
-        fi
-    elif command -v wget &> /dev/null; then
-        if wget -O "$zip_file" "$download_url"; then
-            echo -e "${GREEN_COLOR}✅ 下载成功 (使用wget)${RESET}"
-        else
-            echo -e "${RED_COLOR}❌ 下载失败${RESET}"
-            exit 1
-        fi
+    echo -e "${YELLOW_COLOR}📦 安装 luci-app-quickstart${RESET}"
+    if opkg install luci-app-quickstart luci-theme-argon luci-app-argon-config>/dev/null 2>&1; then
+        echo -e "${GREEN_COLOR}✅ luci-app-quickstart 安装成功${RESET}"
     else
-        echo -e "${RED_COLOR}❌ 未找到可用的下载工具${RESET}"
-        exit 1
+        echo -e "${RED_COLOR}❌ luci-app-quickstart 安装失败${RESET}"
+        return 1
     fi
     
-    # 创建解压目录
-    echo -e "${CYAN_COLOR}📁 创建解压目录...${RESET}"
-    mkdir -p "$extract_dir"
-    echo -e "${GREEN_COLOR}✅ 目录创建完成${RESET}"
-    
-    # 解压缩文件
-    echo -e "${CYAN_COLOR}📦 解压缩文件...${RESET}"
-    if unzip -q "$zip_file" -d "$extract_dir"; then
-        echo -e "${GREEN_COLOR}✅ 解压缩成功${RESET}"
-    else
-        echo -e "${RED_COLOR}❌ 解压缩失败${RESET}"
-        exit 1
-    fi
-    
-    # 移除压缩包
-    echo -e "${CYAN_COLOR}🗑️  移除压缩包...${RESET}"
-    rm -f "$zip_file"
-    echo -e "${GREEN_COLOR}✅ 压缩包已移除${RESET}"
-    
-    # 安装所有ipk文件
-    echo -e "${CYAN_COLOR}🔧 安装插件文件...${RESET}"
-    if [ -d "$extract_dir" ]; then
-        cd "$extract_dir"
-        local ipk_files=(*.ipk)
-        if [ ${#ipk_files[@]} -gt 0 ]; then
-            for ipk_file in "${ipk_files[@]}"; do
-                if [ -f "$ipk_file" ]; then
-                    echo -e "${YELLOW_COLOR}📦 安装: $ipk_file${RESET}"
-                    if opkg install "$ipk_file"; then
-                        echo -e "${GREEN_COLOR}✅ 安装成功: $ipk_file${RESET}"
-                    else
-                        echo -e "${RED_COLOR}❌ 安装失败: $ipk_file${RESET}"
-                    fi
-                fi
-            done
-        else
-            echo -e "${RED_COLOR}❌ 未找到ipk文件${RESET}"
-            exit 1
-        fi
-        cd ..
-    else
-        echo -e "${RED_COLOR}❌ 解压目录不存在${RESET}"
-        exit 1
-    fi
-    
-    echo -e "${GREEN_COLOR}🎉 依赖文件安装完成${RESET}"
     echo ""
+}
+
+# 完成提示
+show_completion() {
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}🎉 iStoreOS 风格化完成!${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e ""
+    echo -e "${BOLD}${YELLOW_COLOR}📋 完成摘要:${RESET}"
+    echo -e "${CYAN_COLOR}✅ 已移除旧插件${RESET}"
+    echo -e "${CYAN_COLOR}✅ 已添加软件源密钥${RESET}"
+    echo -e "${CYAN_COLOR}✅ 已配置软件源${RESET}"
+    echo -e "${CYAN_COLOR}✅ 已更新软件包列表${RESET}"
+    echo -e "${CYAN_COLOR}✅ 已安装 luci-app-quickstart${RESET}"
+    echo -e ""
+    echo -e "${BOLD}${MAGENTA_COLOR}💡 建议操作:${RESET}"
+    echo -e "${YELLOW_COLOR}🔁 重启系统以使所有更改生效${RESET}"
+    echo -e "${YELLOW_COLOR}🌐 访问 Web 界面查看新的主题和功能${RESET}"
+    echo -e ""
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+    echo -e "${CYAN_COLOR}⏰ 完成时间: ${BOLD}${YELLOW_COLOR}$(date '+%Y-%m-%d %H:%M:%S')${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
+}
+
+### 开始风格化 ###
+start_styling() {
+    remove_plugins
+    add_key
+    add_feeds
+    update_opkg
+    install_quickstart
+    show_completion
 }
 
 # 主函数
 main() {
     show_banner
-    start_styling
+    
+    # 确认是否继续
+    echo -e "${BOLD}${YELLOW_COLOR}⚠️  此脚本将修改系统配置，是否继续? [y/N]${RESET}"
+    read -r response
+    case "$response" in
+        [yY][eE][sS]|[yY])
+            echo -e "${GREEN_COLOR}🚀 开始执行风格化...${RESET}"
+            echo ""
+            start_styling
+            ;;
+        *)
+            echo -e "${RED_COLOR}❌ 用户取消操作${RESET}"
+            exit 1
+            ;;
+    esac
 }
 
 main "$@"
