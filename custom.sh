@@ -18,6 +18,7 @@ version='v1.0.0 (2025.11.08)'
 export author="OPPEN321"
 export blog="www.kejizero.online"
 export mirror="https://github.com/QuickWrt/QuickWrt-Scripts"
+export arch=$(echo "$(. /etc/openwrt_release ; echo $DISTRIB_ARCH)")
 
 # 打印横幅
 show_banner() {
@@ -50,13 +51,36 @@ show_banner() {
     echo -e "${CYAN_COLOR}💾  可用空间: ${BOLD}${YELLOW_COLOR}$(df -h / | awk 'NR==2 {print $4}')${RESET}"
     echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
     echo -e ""
-    echo -e "${BOLD}${MAGENTA_COLOR}🚀 正在启动 iStoreOS 视觉美化系统...${RESET}"
+}
+
+# 显示架构信息
+show_arch_info() {
+    echo -e "${BOLD}${MAGENTA_COLOR}🚀  系统架构检测完成${RESET}"
+    
+    # 根据架构类型设置不同的样式
+    case "$arch" in
+        "x86_64")
+            echo -e "${CYAN_COLOR}🎯  架构类型: ${BOLD}${BLUE_COLOR}$arch${RESET}"
+            echo -e "${CYAN_COLOR}📋  架构描述: ${BOLD}${BLUE_COLOR}Intel/AMD 64位高性能处理器${RESET}"
+            ;;
+        "aarch64_cortex-a53")
+            echo -e "${CYAN_COLOR}🎯  架构类型: ${BOLD}${GREEN_COLOR}$arch${RESET}"
+            echo -e "${CYAN_COLOR}📋  架构描述: ${BOLD}${GREEN_COLOR}ARM Cortex-A53 嵌入式处理器${RESET}"
+            ;;
+        "aarch64_generic")
+            echo -e "${CYAN_COLOR}🎯  架构类型: ${BOLD}${YELLOW_COLOR}$arch${RESET}"
+            echo -e "${CYAN_COLOR}📋  架构描述: ${BOLD}${YELLOW_COLOR}通用 ARM64 高性能处理器${RESET}"
+            ;;
+    esac
+    
+    echo -e "${CYAN_COLOR}✅  架构变量: ${BOLD}${YELLOW_COLOR}$arch${RESET}"
     echo -e ""
 }
 
 # 主函数
 main() {
     show_banner
+    show_arch_info
 }
 
 main "$@"
