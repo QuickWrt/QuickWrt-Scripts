@@ -114,7 +114,7 @@ add_feeds() {
     echo -e "${BOLD}${CYAN_COLOR}📦 添加软件源...${RESET}"
     echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
     
-    local feed_url="https://opkg.cooluc.com/iStoreOS/$arch"
+    local feed_url="https://opkg.kejizero.xyz/iStoreOS/$arch"
     local feed_line="src/gz istoreos-files $feed_url"
     local feeds_file="/etc/opkg/customfeeds.conf"
     
