@@ -94,7 +94,7 @@ add_key() {
     local key_file="/tmp/key-build.pub"
     
     echo -e "${YELLOW_COLOR}📥 下载密钥: $key_url${RESET}"
-    if wget -q --timeout=30 --tries=3 -O "$key_file" "$key_url"; then
+    if curl -fsSL --connect-timeout 30 --retry 3 -o "$key_file" "$key_url"; then
         echo -e "${GREEN_COLOR}✅ 密钥下载成功${RESET}"
         echo -e "${YELLOW_COLOR}🔐 添加密钥到opkg...${RESET}"
         opkg-key add "$key_file" >/dev/null 2>&1
