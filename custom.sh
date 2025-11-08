@@ -154,7 +154,7 @@ install_quickstart() {
     echo -e "${BOLD}${BLUE_COLOR}=================================================================${RESET}"
     
     echo -e "${YELLOW_COLOR}📦 安装 luci-app-quickstart${RESET}"
-    if opkg install luci-i18n-quickstart-zh-cn luci-theme-argon luci-app-argon-config-zh-cn>/dev/null 2>&1; then
+    if opkg install luci-i18n-quickstart-zh-cn luci-theme-argon luci-i18n-argon-config-zh-cn >/dev/null 2>&1; then
         echo -e "${GREEN_COLOR}✅ luci-app-quickstart 安装成功${RESET}"
     else
         echo -e "${RED_COLOR}❌ luci-app-quickstart 安装失败${RESET}"
