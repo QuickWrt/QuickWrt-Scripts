@@ -1,0 +1,393 @@
+#!/bin/sh
+
+# =============================================================================
+# ZeroTools - ZeroWrt 专业级工具箱
+# Version: v1.0.1 | Author: OPPEN321
+# Repository: https://gitea.kejizero.xyz/zhao/ZeroTools
+# =============================================================================
+
+# 定义全局颜色
+RED_COLOR='\e[1;31m'
+GREEN_COLOR='\e[1;32m'
+YELLOW_COLOR='\e[1;33m'
+BLUE_COLOR='\e[1;34m'
+MAGENTA_COLOR='\e[1;35m'
+CYAN_COLOR='\e[1;36m'
+GOLD_COLOR='\e[1;33m'
+BOLD='\e[1m'
+RESET='\e[0m'
+
+# 当前脚本版本号
+version='v1.0.1 (2025.11.30)'
+
+# 各变量默认值
+author="OPPEN321"
+blog="www.kejizero.xyz"
+mirror="https://zerowrt.kejizero.xyz"
+api_url="https://gitea.kejizero.xyz/zhao/ZeroTools/raw/branch/main/ZeroWrt"
+device_type="$(jsonfilter -i /etc/board.json -e '@.model.name' 2>/dev/null)"
+lan_ip=$(ip -4 addr show br-lan 2>/dev/null | grep -o 'inet [0-9.]*' | awk '{print $2}')
+firmware_info="会员专享版本"
+kernel_version=$(uname -r)
+net_status=$(ping -c1 -W1 223.5.5.5 >/dev/null 2>&1 && echo "已联网" || echo "未联网")
+
+# 检测身份信息
+if [ $(id -u) != "0" ]; then
+    echo "错误：您必须以 root 用户身份运行此 zerotools，请使用 root 用户。"
+    exit 1
+fi
+
+if ! grep -qi -E "OpenWrt|QWRT" /etc/openwrt_release; then
+    echo "错误：您的系统不支持 zerotools！"
+    exit 1
+fi
+
+
+# 打印横幅及菜单
+Options_Menu() {
+    clear
+    echo -e ""
+    echo -e "${BOLD}${BLUE_COLOR}══════════════════════════════════════════════════════════════${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}                    🛠️  ZeroTools 工具箱 ${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}══════════════════════════════════════════════════════════════${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}👨‍💻 开发者: $author${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}🌐 博客: $blog${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}💡 理念: 开源 · 定制化 · 高性能${RESET}"
+    echo -e "${BOLD}${CYAN_COLOR}📦 版本: $version${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}──────────────────────────────────────────────────────────────${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}🖥️  设备类型: ${device_type}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}🌐  LAN 口 IP: ${lan_ip}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}📦  固件信息: ${firmware_info}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}🧬 内核版本: ${kernel_version}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}📡 联网状态: ${net_status}${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}══════════════════════════════════════════════════════════════${RESET}"
+    echo -e "  ${BOLD}${YELLOW}1.${RESET} ${CYAN_COLOR}SetIP${RESET}           ${WHITE}─${RESET} ${GREEN_COLOR}设置 IP${RESET}"
+    echo -e "  ${BOLD}${YELLOW}2.${RESET} ${CYAN_COLOR}Network_Wizard${RESET}  ${WHITE}─${RESET} ${GREEN_COLOR}网络向导${RESET}" 
+    echo -e "  ${BOLD}${YELLOW}3.${RESET} ${CYAN_COLOR}Apply_repo${RESET}      ${WHITE}─${RESET} ${GREEN_COLOR}软件源配置${RESET}"
+    echo -e "  ${BOLD}${YELLOW}4.${RESET} ${CYAN_COLOR}Diagnostics${RESET}     ${WHITE}─${RESET} ${GREEN_COLOR}网络诊断${RESET}"
+    echo -e "  ${BOLD}${YELLOW}5.${RESET} ${CYAN_COLOR}Debug${RESET}           ${WHITE}─${RESET} ${GREEN_COLOR}抓取日志${RESET}"
+    echo -e "  ${BOLD}${YELLOW}6.${RESET} ${CYAN_COLOR}Catwrt_update${RESET}   ${WHITE}─${RESET} ${GREEN_COLOR}检查更新${RESET}"
+    echo -e "  ${BOLD}${YELLOW}7.${RESET} ${CYAN_COLOR}Sysupgrade${RESET}      ${WHITE}─${RESET} ${GREEN_COLOR}系统更新${RESET}"
+    echo -e "  ${BOLD}${YELLOW}8.${RESET} ${CYAN_COLOR}Restore${RESET}         ${WHITE}─${RESET} ${GREEN_COLOR}恢复软件包${RESET}"
+    echo -e "  ${BOLD}${YELLOW}9.${RESET} ${CYAN_COLOR}Utilities(more)${RESET} ${WHITE}─${RESET} ${GREEN_COLOR}实用工具${RESET}"
+    echo -e "  ${BOLD}${YELLOW}0.${RESET} ${CYAN_COLOR}Exit${RESET}            ${WHITE}─${RESET} ${GREEN_COLOR}退出${RESET}"
+    echo -e "${BOLD}${BLUE_COLOR}══════════════════════════════════════════════════════════════${RESET}"
+    echo -e "${BOLD}${MAGENTA}🎯 请选择操作 ${WHITE}[${YELLOW}0-9${WHITE}]${RESET} ${CYAN}►►${RESET} "
+    echo -ne "${BOLD}${GREEN}💫 输入数字 ${WHITE}»${RESET} ${BOLD}${WHITE}"
+}
+
+# 设置默认地址
+Set_IP() {
+    DEFAULT_IP="10.0.0.1"
+    
+    echo -e "\n${PURPLE}🌐 IP地址配置中心${NC}"
+    echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+    
+    while true; do
+        echo -e "${YELLOW}📝 请输入IP地址${NC}"
+        echo -e "${GREEN}💫 默认地址: $DEFAULT_IP${NC}"
+        echo -e "${BLUE}💡 提示: 输入 '0' 返回主菜单${NC}"
+        echo -ne "${BLUE}➤ ${NC}"
+        read input_ip
+        
+        # 检查是否返回主菜单
+        if [[ "$input_ip" == "0" ]]; then
+            echo -e "${YELLOW}⏪ 返回主菜单...${NC}"
+            return 1
+        fi
+        
+        if [ -z "$input_ip" ]; then
+            input_ip=$DEFAULT_IP
+            echo -e "${GREEN}✅ 使用默认IP地址: $input_ip${NC}"
+        fi
+
+        if echo "$input_ip" | grep -Eo '^(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)\.(25[0-5]|2[0-4][0-9]|[01]?[0-9][0-9]?)$' >/dev/null; then
+            echo -e "${GREEN}🎯 IP地址格式验证通过${NC}"
+            break
+        else
+            echo -e "${RED}❌ 非法的IP地址格式，请重新输入${NC}"
+            echo -e "${YELLOW}💡 正确格式示例: 192.168.1.1${NC}"
+        fi
+    done
+
+    echo -e "\n${BLUE}🔄 正在应用网络配置...${NC}"
+    uci set network.lan.ipaddr="$input_ip"
+    uci commit network
+    
+    echo -e "${GREEN}✅ LAN 口 IP 已成功更改为 $input_ip${NC}"
+    echo -e "${YELLOW}⏳ 系统将在 5 秒后自动重启，请使用新的 IP 地址重新连接。${NC}"
+    
+    # 倒计时提示
+    for i in {5..1}; do
+        echo -e "${CYAN}⏰ ${i}秒后重启...${NC}"
+        sleep 1
+    done
+    
+    echo -e "${GREEN}🚀 正在重启系统...${NC}"
+    reboot
+}
+
+# 网络向导
+Network_Wizard() {
+    while true; do
+        echo
+        echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+        echo -e "${MAGENTA_COLOR}🌐 网络模式选择 - Network Mode Selection${RESET}"
+        echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+        echo -e "${YELLOW_COLOR}1. PPPoE Mode (拨号模式)${RESET}"
+        echo -e "${YELLOW_COLOR}2. DHCP Mode (DHCP模式)${RESET}" 
+        echo -e "${YELLOW_COLOR}3. Bypass Gateway Mode (旁路网关模式)${RESET}"
+        echo -e "${RED_COLOR}0. Exit /// 退出${RESET}"
+        echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+        read -p "请选择网络模式 ([1]PPPoE / [2]DHCP / [3]旁路网关 / [0]退出): " network_mode
+        
+        case "$network_mode" in
+            1)
+                echo
+                echo -e "${GREEN_COLOR}✅ Selected PPPoE Mode /// 已选择 PPPoE 拨号模式${RESET}"
+                pppoe_mode
+                break
+                ;;
+            2)
+                echo
+                echo -e "${GREEN_COLOR}✅ Selected DHCP Mode /// 已选择 DHCP 模式${RESET}"
+                dhcp_mode
+                break
+                ;;
+            3)
+                echo
+                echo -e "${GREEN_COLOR}✅ Selected Bypass Gateway Mode /// 已选择旁路网关模式${RESET}"
+                bypass_gateway_mode
+                break
+                ;;
+            0)
+                echo -e "${YELLOW_COLOR}⏪ 网络向导已退出。${RESET}"
+                return
+                ;;
+            *)
+                echo -e "${RED_COLOR}❌ 无效选择，请重新输入${RESET}"
+                continue
+                ;;
+        esac
+    done
+}
+
+# PPPoE Mode
+pppoe_mode() {
+    echo
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    echo -e "${MAGENTA_COLOR}📞 PPPoE 拨号配置 - PPPoE Dial-up Configuration${RESET}"
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    
+    # IP地址设置
+    Set_IP || return 1
+    
+    echo
+    echo -e "${YELLOW_COLOR}🔧 IPv6 配置${RESET}"
+    read -p "是否禁用 IPv6 网络？([Enter] 跳过 / [1] 禁用): " disable_ipv6
+    if [ "$disable_ipv6" == "1" ]; then
+        uci delete dhcp.lan.dhcpv6
+        uci delete dhcp.lan.ra
+        uci delete dhcp.lan.ra_management
+        uci delete network.lan.ip6assign
+        echo -e "${GREEN_COLOR}✅ IPv6 已禁用${RESET}"
+    fi
+
+    echo
+    echo -e "${YELLOW_COLOR}📝 PPPoE 账号密码${RESET}"
+    echo -e "${BLUE_COLOR}💡 如不知道账号密码，可以寻求宽带师傅，必须要正确填写!${RESET}"
+    read -p "[PPPoE] 请输入宽带账号: " username
+    read -s -p "[PPPoE] 请输入宽带密码: " password
+    echo
+    uci set network.wan.proto=pppoe
+    uci set network.wan.username=$username
+    uci set network.wan.password=$password
+    echo -e "${GREEN_COLOR}✅ PPPoE 拨号配置已完成${RESET}"
+    
+    common_config
+    finalize_config
+}
+
+# DHCP Mode
+dhcp_mode() {
+    echo
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    echo -e "${MAGENTA_COLOR}🌐 DHCP 模式配置 - DHCP Mode Configuration${RESET}"
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    
+    # IP地址设置
+    Set_IP || return 1
+    
+    echo
+    echo -e "${YELLOW_COLOR}🔧 IPv6 配置${RESET}"
+    read -p "是否禁用 IPv6 网络？([Enter] 跳过 / [1] 禁用): " disable_ipv6
+    if [ "$disable_ipv6" == "1" ]; then
+        uci delete dhcp.lan.dhcpv6
+        uci delete dhcp.lan.ra
+        uci delete dhcp.lan.ra_management
+        uci delete network.lan.ip6assign
+        echo -e "${GREEN_COLOR}✅ IPv6 已禁用${RESET}"
+    fi
+
+    echo -e "${GREEN_COLOR}✅ DHCP 模式配置完成${RESET}"
+    
+    common_config
+    finalize_config
+}
+
+# Bypass Gateway Mode
+bypass_gateway_mode() {
+    echo
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    echo -e "${MAGENTA_COLOR}🔄 旁路网关配置 - Bypass Gateway Configuration${RESET}"
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    
+    # 输入主路由的 IP 地址
+    while true; do
+        echo
+        echo -e "${YELLOW_COLOR}📝 请输入主路由的 IP 地址${RESET}"
+        echo -e "${BLUE_COLOR}💡 例如: 192.168.31.1${RESET}"
+        echo -e "${RED_COLOR}⚠️  输入 '0' 返回上一级${RESET}"
+        read -p "主路由 IP 地址: " router_ip
+        
+        if [ "$router_ip" == "0" ]; then
+            echo -e "${YELLOW_COLOR}⏪ 返回上一级...${RESET}"
+            return 1
+        fi
+        
+        if [ -z "$router_ip" ]; then
+            echo -e "${RED_COLOR}❌ 主路由 IP 地址不能为空，请重新输入。${RESET}"
+        elif ! echo "$router_ip" | grep -Eq '^(10|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.'; then
+            echo -e "${RED_COLOR}❌ 输入的 IP 地址无效，请输入有效的内网 IP 地址${RESET}"
+        else
+            break
+        fi
+    done
+
+    subnet=$(echo "$router_ip" | cut -d. -f1-3)
+    echo
+    echo -e "${BLUE_COLOR}🔍 正在扫描 ${subnet}.4 到 ${subnet}.10，查找未被占用的本机 IP...${RESET}"
+    
+    for i in $(seq 4 10); do
+        candidate_ip="${subnet}.${i}"
+        if ping -c 1 -W 1 "$candidate_ip" >/dev/null 2>&1; then
+            echo -e "${YELLOW_COLOR}⏳ ${candidate_ip} 已被占用，继续尝试下一个...${RESET}"
+        else
+            default_device_ip="$candidate_ip"
+            echo -e "${GREEN_COLOR}✅ 找到可用的 IP 地址：${default_device_ip}${RESET}"
+            break
+        fi
+    done
+
+    if [ -z "$default_device_ip" ]; then
+        echo
+        echo -e "${RED_COLOR}❌ 没有找到可用的 IP 地址，请手动指定。${RESET}"
+        while true; do
+            read -p "请输入本机 IP 地址: " device_ip
+            if [ -z "$device_ip" ]; then
+                echo -e "${RED_COLOR}❌ IP 地址不能为空${RESET}"
+            elif ! echo "$device_ip" | grep -Eq '^(10|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.'; then
+                echo -e "${RED_COLOR}❌ 输入的 IP 地址无效，请输入有效的 IP 地址。${RESET}"
+            else
+                break
+            fi
+        done
+    else
+        while true; do
+            echo
+            read -p "建议使用本机 IP 地址为 $default_device_ip，按回车确认或输入新的 IP 地址: " device_ip
+            if [ -z "$device_ip" ]; then
+                device_ip="$default_device_ip"
+                break
+            elif ! echo "$device_ip" | grep -Eq '^(10|172\.(1[6-9]|2[0-9]|3[01])|192\.168)\.'; then
+                echo -e "${RED_COLOR}❌ 输入的 IP 地址无效，请输入有效的 IP 地址。${RESET}"
+            else
+                break
+            fi
+        done
+    fi
+    
+    echo
+    echo -e "${GREEN_COLOR}📊 配置信息汇总${RESET}"
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+    echo -e "${YELLOW_COLOR}主路由 IP 地址：$router_ip${RESET}"
+    echo -e "${YELLOW_COLOR}本机(旁路网关) IP 地址：$device_ip${RESET}"
+    echo -e "${CYAN_COLOR}═══════════════════════════════════════════════${RESET}"
+
+    # DNS设置
+    echo
+    echo -e "${YELLOW_COLOR}🌐 DNS 服务器设置${RESET}"
+    read -p "使用推荐的 DNS 服务器 223.6.6.6 223.5.5.5 吗？([Enter] 确认 / [0] 跳过): " use_dns
+    if [ "$use_dns" = "0" ]; then
+        echo -e "${YELLOW_COLOR}⏩ 跳过 DNS 设置${RESET}"
+    elif [ -z "$use_dns" ]; then
+        uci set network.lan.dns="223.6.6.6 223.5.5.5"
+        echo -e "${GREEN_COLOR}✅ 已设置推荐 DNS 服务器${RESET}"
+    else
+        if [[ $use_dns =~ ^([0-9]{1,3}\.){3}[0-9]{1,3}(\s+([0-9]{1,3}\.){3}[0-9]{1,3})*$ ]]; then
+            uci set network.lan.dns="$use_dns"
+            echo -e "${GREEN_COLOR}✅ 已设置自定义 DNS 服务器${RESET}"
+        else
+            echo -e "${RED_COLOR}❌ 无效的 DNS 格式${RESET}"
+            return 1
+        fi
+    fi
+
+    # 配置网络
+    echo
+    echo -e "${BLUE_COLOR}🔄 正在应用网络配置...${RESET}"
+    uci set network.lan.ipaddr="$device_ip"
+    uci set network.lan.gateway="$router_ip"
+    uci set network.lan.proto='static'
+    uci commit network
+
+    # 禁用 IPv6
+    uci set dhcp.lan.dhcpv6='disabled'
+    uci set dhcp.lan.ra='disabled'
+    uci commit dhcp
+
+    # 禁用 DHCP 服务
+    uci set dhcp.lan.ignore='1'
+    uci delete dhcp.lan.leasetime
+    uci delete dhcp.lan.limit
+    uci delete dhcp.lan.start
+    uci commit dhcp
+
+    echo -e "${GREEN_COLOR}✅ 旁路网关配置完成!${RESET}"
+    echo -e "${GREEN_COLOR}📡 本机 IP: $device_ip${RESET}"
+
+    # 重启服务
+    /etc/init.d/network restart
+    /etc/init.d/firewall restart
+    /etc/init.d/dnsmasq restart
+
+    echo
+    echo -e "${YELLOW_COLOR}⚠️  如出现 Warning 是因为旁路防火墙是这样报错的，部分配置可以忽略不影响使用${RESET}"
+}
+
+# 主执行逻辑
+main() {
+    while true; do
+        Options_Menu
+        read choice
+        
+        case $choice in
+            1)
+                Set_IP
+                ;;
+            2)
+                Network_Wizard
+                ;;
+            0)
+                echo -e "${YELLOW_COLOR}感谢使用 ZeroTools，再见！${RESET}"
+                exit 0
+                ;;
+            *)
+                echo -e "${RED_COLOR}无效选择，请重新输入！${RESET}"
+                read -p "按回车键继续..."
+                ;;
+        esac
+    done
+}
+
+main "$@"
