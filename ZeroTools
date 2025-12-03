@@ -58,8 +58,8 @@ Options_Menu() {
     echo -e "${BOLD}${GREEN_COLOR}🖥️  设备类型: ${device_type}${RESET}"
     echo -e "${BOLD}${GREEN_COLOR}🌐  LAN 口 IP: ${lan_ip}${RESET}"
     echo -e "${BOLD}${GREEN_COLOR}📦  固件信息: ${firmware_info}${RESET}"
-    echo -e "${BOLD}${GREEN_COLOR}🧬 内核版本: ${kernel_version}${RESET}"
-    echo -e "${BOLD}${GREEN_COLOR}📡 联网状态: ${net_status}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}🧬  内核版本: ${kernel_version}${RESET}"
+    echo -e "${BOLD}${GREEN_COLOR}📡  联网状态: ${net_status}${RESET}"
     echo -e "${BOLD}${BLUE_COLOR}══════════════════════════════════════════════════════════════${RESET}"
     echo -e "  ${BOLD}${YELLOW}1.${RESET} ${CYAN_COLOR}SetIP${RESET}           ${WHITE}─${RESET} ${GREEN_COLOR}设置 IP${RESET}"
     echo -e "  ${BOLD}${YELLOW}2.${RESET} ${CYAN_COLOR}Network_Wizard${RESET}  ${WHITE}─${RESET} ${GREEN_COLOR}网络向导${RESET}" 
@@ -80,8 +80,13 @@ Options_Menu() {
 Set_IP() {
     DEFAULT_IP="10.0.0.1"
     
-    echo -e "\n${PURPLE}🌐 IP地址配置中心${NC}"
-    echo -e "${CYAN}═══════════════════════════════════════════════${NC}"
+    # 高级渐变感标题（上亮下暗）
+    echo -e ""
+    echo -e "${CYAN}╔══════════════════════════════════════════════════╗${NC}"
+    echo -e "${CYAN}║${NC}           ${BOLD}${PURPLE}🌐  IP 地址配置中心${NC}           ${CYAN}║${NC}"
+    echo -e "${CYAN}╚══════════════════════════════════════════════════╝${NC}"
+    echo -e "${PURPLE}────────── ✦ ZeroWrt Network Manager ✦ ──────────${NC}"
+    echo -e ""
     
     while true; do
         echo -e "${YELLOW}📝 请输入IP地址${NC}"
@@ -106,7 +111,7 @@ Set_IP() {
             break
         else
             echo -e "${RED}❌ 非法的IP地址格式，请重新输入${NC}"
-            echo -e "${YELLOW}💡 正确格式示例: 192.168.1.1${NC}"
+            echo -e "${YELLOW}💡 正确格式示例: 10.0.0.1${NC}"
         fi
     done
 
